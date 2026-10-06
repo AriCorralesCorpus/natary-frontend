@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../../config";
+import useEnVivo from "../../hooks/useEnVivo";
 
 function EditorProductos(){
 
@@ -20,36 +21,21 @@ function EditorProductos(){
 };
 
     const cargarProductos = async()=>{
-
         try{
-
             const res = await fetch(
     `${API}/api/productos`
 );
-
-
             const data = await res.json();
-
-
-            setProductos(data);
-
-
+            if (Array.isArray(data)) {
+    setProductos(data);
+}
         }catch(error){
-
             console.log(error);
-
         }
-
     };
-
-
-
-
     const eliminarProducto = async()=>{
 
-
         try{
-
 const token = localStorage.getItem("token");
 
 const respuesta = await fetch(
@@ -104,6 +90,8 @@ const respuesta = await fetch(
 
 
     },[]);
+
+    useEnVivo(cargarProductos);
 
 
 

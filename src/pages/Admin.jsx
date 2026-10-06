@@ -1,25 +1,36 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Admin.css";
+import useEnVivo from "../hooks/useEnVivo";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 function Admin() {
   const [productos, setProductos] = useState([]);
   const navigate = useNavigate();
 
   const cargarProductos = async () => {
-    const token = localStorage.getItem("token");
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/productos`, {
-      headers: {
-        Authorization: `Bearer ${token}`
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/api/productos`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setProductos(data);
       }
-    });
-    const data = await res.json();
-    setProductos(data);
+    } catch (error) {
+      console.error("Error al cargar productos:", error);
+    }
   };
 
   useEffect(() => {
     cargarProductos();
   }, []);
+
+  useEnVivo(cargarProductos);
 
   // LOGOUT
   const logout = () => {
@@ -32,55 +43,70 @@ function Admin() {
   const agregarProducto = async (e) => {
     e.preventDefault();
 
-    const formData = new FormData(e.target);
-
+    const form = e.target;
+    const formData = new FormData(form);
     const token = localStorage.getItem("token");
-    const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/productos`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      body: formData
-    });
 
-    const data = await res.json();
+    try {
+      const res = await fetch(`${API}/api/productos`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
 
-    if (res.ok) {
-      alert("Producto agregado");
-      e.target.reset();
-      cargarProductos();
-    } else {
-      alert(data.message || "Error al agregar");
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Producto agregado");
+        form.reset();
+        cargarProductos();
+      } else {
+        alert(data.message || "Error al agregar");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo conectar con el servidor");
     }
   };
 
   // STOCK
   const actualizarStock = async (id, stock) => {
     const token = localStorage.getItem("token");
-    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/productos/stock/${id}`, {
-      method: "PUT",
-      headers: { 
-        "Content-Type": "application/json" ,
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ stock })
-    });
 
-    cargarProductos();
+    try {
+      await fetch(`${API}/api/productos/stock/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ stock })
+      });
+      cargarProductos();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   // ELIMINAR
   const eliminar = async (id) => {
     if (!window.confirm("¿Eliminar producto?")) return;
-const token = localStorage.getItem("token");
-    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/productos/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
 
-    cargarProductos();
+    const token = localStorage.getItem("token");
+
+    try {
+      await fetch(`${API}/api/productos/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      cargarProductos();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -126,6 +152,7 @@ const token = localStorage.getItem("token");
 
               <label>Stock</label>
               <input
+                key={`${p.cve_pro}-${p.stock_pro}`}
                 type="number"
                 defaultValue={p.stock_pro}
                 onBlur={(e) =>

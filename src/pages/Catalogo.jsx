@@ -5,6 +5,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./Index.css";
 import logo from "../assets/logo.avif";
 import { API } from "../config";
+import useEnVivo from "../hooks/useEnVivo";
+
 function Catalogo() {
 
     const navigate = useNavigate();
@@ -18,11 +20,23 @@ function Catalogo() {
         }
     }, [usuario, navigate]);
 
+    const cargarProductos = () => {
+        axios.get(`${API}/api/productos`)
+            .then(res => {
+                if (Array.isArray(res.data)) {
+                    setProductos(res.data);
+                }
+            })
+            .catch(err => console.log(err));
+    };
+
     useEffect(() => {
-    axios.get(`${API}/api/productos`)
-        .then(res => setProductos(res.data))
-        .catch(err => console.log(err));
-}, []);
+        cargarProductos();
+    }, []);
+
+    // Se actualiza solo cuando el servidor avisa de un cambio.
+    // Debe ir antes del return condicional de abajo.
+    useEnVivo(cargarProductos);
 
     if (!usuario) {
         return null;
@@ -36,57 +50,57 @@ function Catalogo() {
 
     const agregarCarrito = async (producto) => {
 
-    const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token");
 
-    try {
-        // Stock actual y lo que este cliente ya tiene en su carrito
-        const [prods, carrito] = await Promise.all([
-            axios.get(`${API}/api/productos`),
-            axios.get(`${API}/api/carrito`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-        ]);
+        try {
+            // Stock actual y lo que este cliente ya tiene en su carrito
+            const [prods, carrito] = await Promise.all([
+                axios.get(`${API}/api/productos`),
+                axios.get(`${API}/api/carrito`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
 
-        setProductos(prods.data); // refresca el catálogo con el stock real
+            setProductos(prods.data); // refresca el catálogo con el stock real
 
-        const actual = prods.data.find(x => x.cve_pro === producto.cve_pro);
-        const stock = actual?.stock_pro ?? 0;
-        const enCarrito =
-            carrito.data.find(x => x.cve_pro === producto.cve_pro)?.cantidad ?? 0;
+            const actual = prods.data.find(x => x.cve_pro === producto.cve_pro);
+            const stock = actual?.stock_pro ?? 0;
+            const enCarrito =
+                carrito.data.find(x => x.cve_pro === producto.cve_pro)?.cantidad ?? 0;
 
-        if (stock <= 0) {
-            alert("Este producto ya no está disponible");
-            return;
+            if (stock <= 0) {
+                alert("Este producto ya no está disponible");
+                return;
+            }
+
+            if (enCarrito >= stock) {
+                alert("Ya tienes en tu carrito todas las piezas disponibles");
+                return;
+            }
+
+            const respuesta = await fetch(`${API}/api/carrito`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    cve_pro: producto.cve_pro,
+                    accion: "sumar"
+                })
+            });
+
+            const data = await respuesta.json();
+            console.log(data);
+
+            alert("Producto agregado al carrito");
+            navigate("/carrito");
+
+        } catch (err) {
+            console.log(err);
+            alert("No se pudo agregar el producto. Intenta de nuevo");
         }
-
-        if (enCarrito >= stock) {
-            alert("Ya tienes en tu carrito todas las piezas disponibles");
-            return;
-        }
-
-        const respuesta = await fetch(`${API}/api/carrito`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                cve_pro: producto.cve_pro,
-                accion: "sumar"
-            })
-        });
-
-        const data = await respuesta.json();
-        console.log(data);
-
-        alert("Producto agregado al carrito");
-        navigate("/carrito");
-
-    } catch (err) {
-        console.log(err);
-        alert("No se pudo agregar el producto. Intenta de nuevo");
-    }
-};
+    };
 
     return (
         <main className="pagina">
@@ -153,6 +167,7 @@ function Catalogo() {
 
                                     <img
                                         src={`${API}/uploads/${p.img_pro}`}
+                                        alt={p.nombre_pro}
                                         className="card-img-top"
                                         height="200"
                                     />
@@ -199,135 +214,115 @@ function Catalogo() {
                 </div>
 
             </main>
-{/* FOOTER */}
 
+            {/* FOOTER */}
+            <footer className="footer">
 
-<footer className="footer">
+                <div className="footer-contenido">
 
+                    <div className="footer-col">
 
-<div className="footer-contenido">
+                        <h3>
+                            <img src={logo} alt="NATARY" />
+                            NATARY
+                        </h3>
 
+                        <p>
+                            Figuras tejidas de crochet hechas a mano,
+                            con diseños únicos y mucho amor.
+                        </p>
 
-<div className="footer-col">
+                    </div>
 
-<h3>
-<img src={logo} alt="NATARY" />
- NATARY
-</h3>
+                    <div className="footer-col contacto-mapa" id="contacto">
 
+                        {/* COL 1: CONTACTO */}
+                        <div className="contacto-info">
+                            <h4>Contacto</h4>
+                            <p>México</p>
+                            <p>
+                                <a href="mailto:contacto@natary.com">contacto@natary.com</a>
+                            </p>
 
-<p>
-Figuras tejidas de crochet hechas a mano,
-con diseños únicos y mucho amor.
-</p>
+                            <p>
+                                <a href="tel:5512345678">55-1234-5678</a>
+                            </p>
+                        </div>
 
+                        {/* COL 2: MAPA */}
+                        <div className="contacto-mapa-box">
+                            <iframe
+                                title="Ubicación NATARY"
+                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3733.3841542876357!2d-100.40866872554646!3d20.653944480903142!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d35a486363880d%3A0xd927286fe3c75218!2sUTEQ!5e0!3m2!1ses-419!2sus!4v1782329411798!5m2!1ses-419!2sus"
+                                width="100%"
+                                height="180"
+                                style={{ border: 0, borderRadius: "10px" }}
+                                loading="lazy"
+                            ></iframe>
+                        </div>
 
-</div>
+                    </div>
 
-<div className="footer-col contacto-mapa" id="contacto">
+                    <div className="footer-col">
 
-  {/* COL 1: CONTACTO */}
-  <div className="contacto-info">
-    <h4>Contacto</h4>
-    <p>éxico</p>
-    <p>
-  <a href="mailto:contacto@natary.com">contacto@natary.com</a>
-</p>
+                        <h4>
+                            Información
+                        </h4>
 
-<p>
-  <a href="tel:5512345678">55-1234-5678</a>
-</p>
-  </div>
+                        <p>
+                            Mi cuenta
+                        </p>
 
-  {/* COL 2: MAPA */}
-  <div className="contacto-mapa-box">
-    <iframe
-      title="Ubicación NATARY"
-      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3733.3841542876357!2d-100.40866872554646!3d20.653944480903142!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d35a486363880d%3A0xd927286fe3c75218!2sUTEQ!5e0!3m2!1ses-419!2sus!4v1782329411798!5m2!1ses-419!2sus"
-      width="100%"
-      height="180"
-      style={{ border: 0, borderRadius: "10px" }}
-      loading="lazy"
-    ></iframe>
-  </div>
+                        <p>
+                            Preguntas frecuentes
+                        </p>
 
-</div>
+                        <p>
+                            <button onClick={() => navigate("/privacidad")}>
+                                Aviso de privacidad
+                            </button>
+                        </p>
 
-<div className="footer-col">
+                        <p>
+                            <button onClick={() => navigate("/terminos")}>
+                                Términos del servicio
+                            </button>
+                        </p>
 
-<h4>
-Información
-</h4>
+                    </div>
 
+                    <div className="footer-col redes">
 
-<p>
-Mi cuenta
-</p>
+                        <h4>
+                            Síguenos
+                        </h4>
 
-<p>
-Preguntas frecuentes
-</p>
+                        <div className="iconos">
 
-<p>
- <button onClick={() => navigate("/privacidad")}>
-  Aviso de privacidad
-</button>
-</p>
+                            <a href="https://facebook.com" aria-label="Facebook" target="_blank" rel="noreferrer">
+                                <i className="bi bi-facebook"></i>
+                            </a>
 
-<p>
- <button onClick={() => navigate("/terminos")}>
-  Términos del servicio
-</button>
-</p>
+                            <a href="https://www.instagram.com/like_super_crochet?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" aria-label="Instagram" target="_blank" rel="noreferrer">
+                                <i className="bi bi-instagram"></i>
+                            </a>
 
-</div>
+                            <a href="https://youtube.com" aria-label="Youtube" target="_blank" rel="noreferrer">
+                                <i className="bi bi-youtube"></i>
+                            </a>
 
+                        </div>
 
+                    </div>
 
+                </div>
 
+                <div className="footer-bottom">
 
+                    © 2026 NATARY | Todos los derechos reservados
 
-<div className="footer-col redes">
-
-
-<h4>
-Síguenos
-</h4>
-
-
-<div className="iconos">
-
- <a href="https://facebook.com" aria-label="Facebook" target="_blank" rel="noreferrer">
-          <i className="bi bi-facebook"></i>
-        </a>
-        
-        <a href="https://www.instagram.com/like_super_crochet?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" aria-label="Instagram" target="_blank" rel="noreferrer">
-          <i className="bi bi-instagram"></i>
-        </a>
-        
-        <a href="https://youtube.com" aria-label="Youtube" target="_blank" rel="noreferrer">
-          <i className="bi bi-youtube"></i>
-        </a>
-
-
-</div>
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-<div className="footer-bottom">
-
-© 2026 NATARY | Todos los derechos reservados
-
-</div>
-</footer>
+                </div>
+            </footer>
         </main>
     );
 }

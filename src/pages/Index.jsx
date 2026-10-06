@@ -16,6 +16,7 @@ import ganchos from "../assets/ganchos.avif";
 import accesorios from "../assets/accesorios.avif";
 import { useState, useEffect } from "react";
 import { API } from "../config";
+import useEnVivo from "../hooks/useEnVivo";
 function Index(){
 
 const navigate = useNavigate();
@@ -59,18 +60,26 @@ const agregarAlCarrito = async (producto) => {
   console.log("Agregado:", data);
 };
 
-useEffect(() => {
-
-       fetch(`${API}/api/productos`)
+const cargarProductos = () => {
+  fetch(`${API}/api/productos`)
     .then(res => res.json())
     .then(data => {
+      if (Array.isArray(data)) {
         setProductos(data);
+      }
     })
     .catch(error => {
-        console.error("Error:", error);
+      console.error("Error:", error);
     });
+};
 
+useEffect(() => {
+  cargarProductos();
 }, []);
+
+// Se actualiza solo cuando el servidor avisa de un cambio
+useEnVivo(cargarProductos);
+
 useEffect(() => {
 
     const hoy = new Date();

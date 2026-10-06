@@ -46,11 +46,10 @@ const token = localStorage.getItem("token");
 
 
             if(data.success){
-
                 alert("Producto actualizado correctamente");
-
                 navigate("/editor/productos");
-
+            }else {
+                alert(data.message || "No se pudo actualizar");
             }
 
 
